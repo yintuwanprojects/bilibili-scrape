@@ -1,7 +1,6 @@
 import aiohttp
-import asyncio
 import time
-import get_danmu
+
 
 start_time = time.time()
 
@@ -9,20 +8,20 @@ start_time = time.time()
 async def main(dms, bvid, oid, start, end):
     dm_like_url = f'https://api.bilibili.com/x/v2/dm/thumbup/stats?oid={oid}&ids='
     dms_indexed_text = {}
+    for dm in dms:
+        dms_indexed_text[str(dm.id)] = {"text": dm.text, "dm_time": dm.dm_time}
     async with aiohttp.ClientSession() as session:
         print(f"start: {start}, end: {end}")
-        for i in range(start, end, 20):
-            dms_in_range = []
-            for j in range(0, 20):
-                if (int(i) + int(j)) < len(dms):
-                    dms_in_range.append(dms[int(i) + int(j)])
+        for i in range(start, end, 100):
+            dms_in_range = dms[i: i + 100]
             dms_ids = [str(dm.id) for dm in dms_in_range]
             dms_list_str = ",".join(dms_ids)
             dms_url = dm_like_url + dms_list_str
-            for dm in dms_in_range:
-                dms_indexed_text[str(dm.id)] = {"text": dm.text, "dm_time": dm.dm_time}
+            print(f'Retrieving i: {i}')
+            start = time.time()
             async with session.get(dms_url) as resp:
                 dm_like = await resp.json()
+                print("--- %s seconds ---" % (time.time() - start))
                 try:
                     for dm_id in dm_like['data'].keys():
                         dms_indexed_text[dm_id]['likes'] = dm_like['data'][dm_id]['likes']
@@ -36,6 +35,5 @@ async def main(dms, bvid, oid, start, end):
         with open(bvid + "/" + "dm_likes.csv", "w") as f:
             for line in dms_likes_list:
                 f.write(f"{line['id']}, {line['text']}, {line['dm_time']}, {line['likes']}\n")
+        print("--- %s seconds ---" % (time.time() - start_time))
         return dms_likes_list
-
-print("--- %s seconds ---" % (time.time() - start_time))
